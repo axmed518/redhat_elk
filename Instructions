@@ -1,0 +1,267 @@
+1. Install Centos/Redhat 9
+
+2. Update check for available for download updates and install them
+    sudo dnf update 
+
+3. Install Java
+    sudo dnf install java-11-openjdk-devel
+
+4. Verify the version of Java you have installed:
+    java -version
+
+#openjdk version "11.0.22" 2024-01-16 LTS
+#OpenJDK Runtime Environment (Red_Hat-11.0.22.0.7-1) (build 11.0.22+7-LTS)
+#OpenJDK 64-Bit Server VM (Red_Hat-11.0.22.0.7-1) (build 11.0.22+7-LTS, mixed mode, sharing)
+5. Install and start Elasticsearch
+    sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+The command above imports the GPG key for elasticsearch. Using your preferred text editor, create an elasticsearch.repo file under /etc/yum.repos.d/ directory.
+
+    sudo vim /etc/yum.repos.d/elasticsearch.repo
+
+Copy and paste the following content to it:
+
+[elasticsearch]
+name=Elasticsearch repository for 8.x packages
+baseurl=https://artifacts.elastic.co/packages/8.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+
+Save and exit the file. Then, run the following command to install elasticsearch:
+    sudo dnf install --enablerepo=elasticsearch elasticsearch
+    
+  
+Security Autoconfiguration Information
+Take note of the Security autoconfiguration information and specifically–your generated password as you will need it later: **Save this information in a text file somewhere on your machine**
+
+--------------------------- Security autoconfiguration information ------------------------------
+
+Authentication and authorization are enabled.
+TLS for the transport and HTTP layers is enabled and configured.
+
+The generated password for the elastic built-in superuser is : XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+If this node should join an existing cluster, you can reconfigure this with
+'/usr/share/elasticsearch/bin/elasticsearch-reconfigure-node --enrollment-token <token-here>'
+after creating an enrollment token on your existing cluster.
+
+You can complete the following actions at any time:
+
+Reset the password of the elastic built-in superuser with
+'/usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic'.
+
+Generate an enrollment token for Kibana instances with
+ '/usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana'.
+
+Generate an enrollment token for Elasticsearch nodes with
+'/usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s node'.
+
+-------------------------------------------------------------------------------------------------
+
+
+Execute the following statements to configure elasticsearch service to start automatically using systemd
+    systemctl daemon-reload
+    systemctl enable --now elasticsearch.service
+    systemctl start elasticsearch.service
+
+6. Open the Elasticsearch configuration file located at: /etc/elasticsearch/elasticsearch.yml.
+
+    vi /etc/elasticsearch/elasticsearch.yml
+
+  a. Remove the comment from the “cluster.name” and update it to your chosen cluster name
+
+    # Use a descriptive name for your cluster:
+    #
+    cluster.name: elk-cluster
+
+  b. Uncomment the “node.name” and update it to the hostname (preferably, the fully-qualified domain name (FQDN)) of your Elasticsearch server.
+
+    node.name: elk1.axmed518.online
+
+  c. Uncomment the “network.host” and update it to the FQDN of your Elasticsearch (main) server.
+
+    # By default Elasticsearch is only accessible on localhost. Set a different
+    # address here to expose this node on the network:
+    #
+    network.host: elk1.axmed518.online
+
+  d. **If you lack a FQDN or if your machine isn’t integrated into a DNS system, utilize your system’s IP address instead**
+
+    # By default Elasticsearch is only accessible on localhost. Set a different
+    # address here to expose this node on the network:
+    #
+    network.host: 192.168.1.222
+
+  e. Remove the comment from  “http.port” allowing Elasticsearch to specifically listen on port 9200.
+
+    # By default Elasticsearch listens for HTTP traffic on the first free port it
+    # finds starting at 9200. Set a specific HTTP port here:
+    #
+    http.port: 9200
+  f. Define the initial master node for the cluster
+    cluster.initial_master_nodes: ["elk1.axmed518.online"]
+
+
+7. Shutdown the firewalld
+    systemctl stop firewalld
+
+8. Disable SELinux and reboot the node
+    vi /etc/selinux/config 
+SELINUX=enforcing ==> SELINUX=disabled
+
+
+9. Become the root user and store the Elasticsearch built-in password as an environment variable named ELASTIC_PASSWORD using the export command.
+    export ELASTIC_PASSWORD="elastic_password"
+
+10. As the root user, execute the following command to verify functionality and ensure that Elasticsearch responds to basic HTTP requests.:
+    curl --cacert /etc/elasticsearch/certs/http_ca.crt -u elastic:$ELASTIC_PASSWORD https://elk1.axmed518.online:9200
+
+[root@elk1 ~]# curl --cacert /etc/elasticsearch/certs/http_ca.crt -u elastic:$ELASTIC_PASSWORD https://elk1.axmed518.online:9200 -k
+{
+  "name" : "elk1.axmed518.online",
+  "cluster_name" : "elk-cluster",
+  "cluster_uuid" : "ErYgTvHGQ1ippGO9yEimUA",
+  "version" : {
+    "number" : "8.13.2",
+    "build_flavor" : "default",
+    "build_type" : "rpm",
+    "build_hash" : "16cc90cd2d08a3147ce02b07e50894bc060a4cbf",
+    "build_date" : "2024-04-05T14:45:26.420424304Z",
+    "build_snapshot" : false,
+    "lucene_version" : "9.10.0",
+    "minimum_wire_compatibility_version" : "7.17.0",
+    "minimum_index_compatibility_version" : "7.0.0"
+  },
+  "tagline" : "You Know, for Search"
+}
+
+
+
+11. Install Kibana
+Run the following command to install kibana: 
+
+    sudo dnf install kibana
+
+Generate enrollment token for Kibana
+Run the following command to generate an enrollment token for Kibana:
+
+    sudo /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana
+    eyJ2ZXIiOiI4LjEzLjIiLCJhZHIiOlsiMTkyLjE2OC4xLjIyMjo5MjAwIl0sImZnciI6IjNkMGYyYTIxODIzMTViMTExMmE3NTAzMTdhZDNkMzRiYmU5YTQ2NDlhMDZkZTI5YWNjZDgzZmM2MTliZTNiOGQiLCJrZXkiOiJpcGVaVDQ4QkdfWUVfQ0lLYWhWZzpqMDJMZk1XalF5dU5OMnNhbXJXNGFRIn0=
+
+Next, initiate the kibana setup with the following command:
+
+$ sudo /usr/share/kibana/bin/kibana-setup
+? Enter enrollment token:
+You’ll be prompted to provide the enrollment token generated in the previous step. 
+
+? Enter enrollment token: eyJ2ZXIiOiI4LjEzLjIiLCJhZHIiOlsiMTkyLjE2OC4xLjIyMjo5MjAwIl0sImZnciI6IjNkMGYyYTIxODIzMTViMTExMmE3NTAzMTdhZDNkMzRiYmU5YTQ2NDlhMDZkZTI5YWNjZDgzZmM2MTliZTNiOGQiLCJrZXkiOiJpcGVaVDQ4QkdfWUVfQ0lLYWhWZzpqMDJMZk1XalF5dU5OMnNhbXJXNGFRIn0=
+
+Copy and paste in the token and hit the [Enter] key to continue.
+
+✔ Kibana configured successfully.
+
+To start Kibana run:
+  bin/kibana
+
+Start Kibana
+Run the following commands to start Kibana and enable it to autostart on boot:
+
+sudo systemctl daemon-reload; systemctl enable --now kibana
+Ensure that you can access the Kibana User Interface (UI) from another computer by allowing traffic on TCP port 5601.
+
+sudo firewall-cmd --permanent --add-port=5601/tcp; sudo firewall-cmd --reload
+For security reasons, it’s not ideal to run Kibana over HTTP. Using HTTPS is a safer option. Making sure your HTTPS session has a valid SSL certificate signed by an official (e.g. Letsencrypt, Digicert, GlobalSign, etc…) Certificate Authority (CA)–even better. We can set this up by using nginx as a proxy and directing it to http://localhost:5601. Don’t worry, we’ll show you how to do this in the next section.
+
+12. Launch Kibana
+Launch the Kibana UI by entering the following URL: https://<elasticsearch-server or main-server-FQDN>:5601
+
+Enter your login credentials which was provided earlier in the Security Autoconfiguration Information Section. In our case the username is the same: elastic. The password (ELASTIC_PASSWORD) will differ as it is randomly generated each time Elasticsearch is installed.
+
+Click the “Explore on my own” link to be greeted with the Home Page.
+
+With successful login, we’ve now established an operational Elasticsearch server running alongside Kibana. Now, let’s move forward with setting up Logstash.
+
+13. Configure rsyslog to accept the logs and save them to /var/log/messages file and uncomment these lines:
+    
+    vi /etc/rsyslog.conf
+
+module(load="imudp") # needs to be done just once
+input(type="imudp" port="514")
+
+
+14. Install Logstash
+For this part of the ELK installation, we’ll install Logstash on our Fedora 38 client instance. However, this procedure will work on any rpm-based distribution (e.g. Redhat 8+, CentOS 8+). Let’s begin by installing Java-11:
+    dnf install java-11-openjdk-devel
+
+As this is another machine, we’ll need to import the GPG key for Elasticsearch.
+    rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+Create repositry file for logstash
+    vi /etc/yum.repos.d/logstash.repo
+
+Copy and paste the following contents into the /etc/yum.repos.d/logstash.repo file.
+
+[elastic-8.x]
+name=Elastic repository for 8.x packages
+baseurl=https://artifacts.elastic.co/packages/8.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+
+Save and quit the file. We can now proceed with the logstash install:
+    dnf install logstash
+
+15. Configure Logstash
+We’ll showcase Logstash functionality by focusing solely on reading the /var/log/messages file on the client instance (vm2.naijalabs.net) for simplicity. Utilizing the diverse array of plugins at our disposal, we’ll configure Logstash to filter and organize the log messages into a format suitable for ingestion by Elasticsearch. To commence, let’s create a configuration file named varlog.conf within the /etc/logstash/conf.d/ directory.
+
+    vi /etc/logstash/conf.d/varlog.conf
+
+Input:
+For the input section, copy and paste the following (below) to the file (Then, save and exit the file):
+
+input {
+  file {
+    id => "var_log_messages"
+    path => "/var/log/messages"
+  }
+}
+filter {}
+
+output {
+  stdout {}
+
+}
+
+---------------------
+
+Input Breakdown
+
+Input Configuration:
+
+The input block defines the source of data that Logstash will ingest.
+In this case, the input plugin used is file, which reads data from files.
+
+File Plugin:
+
+The file plugin configuration specifies that Logstash should read from a file.
+id is an optional parameter used to uniquely identify this input. It helps in managing multiple inputs.
+path specifies the path to the file from which Logstash will read data. In this example, it’s set to /var/log/messages, indicating that Logstash will read from the /var/log/messages file.
+
+---------------------
+
+Analyzing and parsing the logs
+You might wonder why the filter block is currently empty. Additionally, we’re using the stdout plugin in the output block to route all processed events to standard output or the console. This step is essential for observing and analyzing the generated output from the logs.
+
+To trigger a log entry in the /var/log/messages file on our client server, follow these steps:
+
+Open one terminal window on the server and run the following command:
+    sudo /usr/share/logstash/bin/logstash -f /etc/logstash/conf.d/varlog.conf -r
+
+This command runs Logstash with superuser privileges, using our specific configuration file (varlog.conf), and enables automatic reloading of the configuration when changes are detected. Now, let’s examine the event logs generated when we created and deleted the testuser account.
+
+Now, open an ssh client, connect to the ELK server and logon using a root credentials: You will see outputs related to the in the terminal window where the Logstash is running
