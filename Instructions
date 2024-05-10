@@ -265,3 +265,25 @@ Open one terminal window on the server and run the following command:
 This command runs Logstash with superuser privileges, using our specific configuration file (varlog.conf), and enables automatic reloading of the configuration when changes are detected. Now, let’s examine the event logs generated when we created and deleted the testuser account.
 
 Now, open an ssh client, connect to the ELK server and logon using a root credentials: You will see outputs related to the in the terminal window where the Logstash is running
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+https://infotechys.com/install-elk-stack-on-rhel9/
